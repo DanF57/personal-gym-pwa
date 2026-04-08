@@ -9,6 +9,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.5rem;
   padding: 0.6rem 1rem;
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
@@ -21,6 +22,60 @@
   font-size: 1rem;
   font-weight: 700;
   letter-spacing: -0.02em;
+}
+
+/* Sync indicator */
+.sync-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.25rem 0.6rem;
+  border-radius: 100px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  transition: all var(--transition);
+}
+
+.sync-indicator svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.sync-ok {
+  color: var(--color-success);
+  background: var(--color-success-dim);
+}
+
+.sync-active {
+  color: var(--color-accent);
+  background: var(--color-accent-dim);
+}
+
+.sync-error {
+  color: var(--color-danger);
+  background: var(--color-danger-dim);
+}
+
+.sync-offline {
+  color: var(--color-text-muted);
+  background: var(--color-surface-2);
+}
+
+.sync-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--color-accent-dim);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .user-btn {

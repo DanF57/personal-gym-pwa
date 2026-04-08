@@ -11,6 +11,7 @@ import {
   getSetting,
   putSetting
 } from './database'
+import { setSyncStatus } from './syncStatus'
 
 let syncing = false
 let retryTimeout = null
@@ -19,12 +20,17 @@ const RETRY_DELAY = 10_000 // 10 seconds
 
 export async function syncAll(attempt = 0) {
   if (syncing) return
-  if (!navigator.onLine) return
+  if (!navigator.onLine) {
+    setSyncStatus({ status: 'offline' })
+    return
+  }
 
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return
 
   syncing = true
+  setSyncStatus({ status: 'syncing', error: null })
+
   let failed = false
 
   try {
@@ -32,10 +38,13 @@ export async function syncAll(attempt = 0) {
     await pushSessions(session.user.id)
     await pullExercises()
     await pullSessions()
-    await putSetting('lastSyncAt', Date.now())
+    const now = Date.now()
+    await putSetting('lastSyncAt', now)
+    setSyncStatus({ status: 'synced', lastSyncedAt: now, error: null })
   } catch (err) {
     console.error(`Sync error (attempt ${attempt + 1}):`, err)
     failed = true
+    setSyncStatus({ status: 'error', error: err.message })
   } finally {
     syncing = false
   }

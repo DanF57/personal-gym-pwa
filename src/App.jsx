@@ -9,7 +9,7 @@ import SessionDetail from './pages/SessionDetail'
 import Progress from './pages/Progress'
 import ExerciseLibrary from './pages/ExerciseLibrary'
 import { seedExercises } from './db/seed'
-import { startAutoSync, stopAutoSync } from './db/sync'
+import { syncAll, startAutoSync, stopAutoSync } from './db/sync'
 import './App.css'
 
 function AppRoutes() {
@@ -18,8 +18,15 @@ function AppRoutes() {
 
   useEffect(() => {
     if (user) {
-      seedExercises().then(() => setReady(true))
-      startAutoSync()
+      // Sync first (pulls existing exercises from cloud), then seed if empty
+      syncAll()
+        .catch(() => {})
+        .finally(() => seedExercises())
+        .then(() => {
+          setReady(true)
+          startAutoSync()
+        })
+
       return () => stopAutoSync()
     }
   }, [user])
