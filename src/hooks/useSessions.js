@@ -5,6 +5,7 @@ import {
   addSession as dbAdd,
   deleteSession as dbDelete
 } from '../db/database'
+import { syncAll } from '../db/sync'
 
 export function useSessions() {
   const [sessions, setSessions] = useState([])
@@ -21,11 +22,13 @@ export function useSessions() {
   const saveSession = useCallback(async (session) => {
     await dbAdd(session)
     await load()
+    syncAll()
   }, [load])
 
   const removeSession = useCallback(async (id) => {
     await dbDelete(id)
     await load()
+    syncAll()
   }, [load])
 
   const getSessionById = useCallback(async (id) => {

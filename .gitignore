@@ -42,7 +42,9 @@ Thumbs.db
 
 # AI folders
 .claude/
-
+.agents/
+.claude.json
+skills-lock.json
 
 node_modules
 dist
