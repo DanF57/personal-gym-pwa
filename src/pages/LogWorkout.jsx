@@ -5,8 +5,32 @@ import { generateId } from '../utils/id'
 import Modal from '../components/Modal'
 import './LogWorkout.css'
 
+const STORAGE_KEY = 'gym-tracker-active-workout'
+
+function loadSavedWorkout() {
+  try {
+    const saved = sessionStorage.getItem(STORAGE_KEY)
+    if (saved) return JSON.parse(saved)
+  } catch { /* ignore corrupt data */ }
+  return null
+}
+
+function saveWorkout(active, startTime, workout) {
+  if (active) {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ active, startTime, entries: workout.entries }))
+  } else {
+    sessionStorage.removeItem(STORAGE_KEY)
+  }
+}
+
+function clearSavedWorkout() {
+  sessionStorage.removeItem(STORAGE_KEY)
+}
+
 function workoutReducer(state, action) {
   switch (action.type) {
+    case 'RESTORE':
+      return { entries: action.entries }
     case 'ADD_EXERCISE':
       return {
         ...state,
@@ -79,6 +103,8 @@ function workoutReducer(state, action) {
           }
         })
       }
+    case 'RESET':
+      return { entries: [] }
     default:
       return state
   }
@@ -186,14 +212,20 @@ function ExerciseEntry({ entry, dispatch }) {
 }
 
 export default function LogWorkout() {
-  const [active, setActive] = useState(false)
-  const [startTime, setStartTime] = useState(null)
+  const saved = loadSavedWorkout()
+  const [active, setActive] = useState(saved?.active ?? false)
+  const [startTime, setStartTime] = useState(saved?.startTime ?? null)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [search, setSearch] = useState('')
-  const [workout, dispatch] = useReducer(workoutReducer, { entries: [] })
+  const [workout, dispatch] = useReducer(workoutReducer, { entries: saved?.entries ?? [] })
   const { exercises } = useExercises()
   const { saveSession } = useSessions()
   const searchRef = useRef(null)
+
+  // Persist workout state to sessionStorage on every change
+  useEffect(() => {
+    saveWorkout(active, startTime, workout)
+  }, [active, startTime, workout])
 
   const startWorkout = () => {
     setActive(true)
@@ -202,10 +234,10 @@ export default function LogWorkout() {
 
   const cancelWorkout = () => {
     if (workout.entries.length > 0 && !confirm('Discard this workout?')) return
+    clearSavedWorkout()
     setActive(false)
     setStartTime(null)
     dispatch({ type: 'RESET' })
-    window.location.reload()
   }
 
   const finishWorkout = async () => {
@@ -240,9 +272,10 @@ export default function LogWorkout() {
       updatedAt: Date.now()
     })
 
+    clearSavedWorkout()
     setActive(false)
     setStartTime(null)
-    window.location.reload()
+    dispatch({ type: 'RESET' })
   }
 
   const selectExercise = (exercise) => {

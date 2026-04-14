@@ -1,14 +1,14 @@
 import { openDB } from 'idb'
 
 const DB_NAME = 'gym-tracker-db'
-const DB_VERSION = 2
+const DB_VERSION = 3
 
 let dbInstance = null
 
 function getDB() {
   if (!dbInstance) {
     dbInstance = openDB(DB_NAME, DB_VERSION, {
-      upgrade(db, oldVersion) {
+      upgrade(db, oldVersion, _newVersion, transaction) {
         if (oldVersion < 1) {
           const exerciseStore = db.createObjectStore('exercises', { keyPath: 'id' })
           exerciseStore.createIndex('category', 'category')
@@ -16,17 +16,49 @@ function getDB() {
           sessionStore.createIndex('date', 'date')
           db.createObjectStore('settings', { keyPath: 'key' })
         }
+        if (oldVersion < 3) {
+          // Add indexes on 'deleted' for efficient filtered queries
+          // During upgrade, transaction.objectStore gives access to existing stores
+          const exStore = db.objectStoreNames.contains('exercises')
+            ? transaction.objectStore('exercises')
+            : null
+          const seStore = db.objectStoreNames.contains('sessions')
+            ? transaction.objectStore('sessions')
+            : null
+
+          if (exStore && !exStore.indexNames.contains('deleted')) {
+            exStore.createIndex('deleted', 'deleted')
+          }
+          if (seStore && !seStore.indexNames.contains('deleted')) {
+            seStore.createIndex('deleted', 'deleted')
+          }
+        }
       }
     })
   }
   return dbInstance
 }
 
+// Close the singleton connection — must be called before deleteDatabase
+export async function closeDB() {
+  if (dbInstance) {
+    const db = await dbInstance
+    db.close()
+    dbInstance = null
+  }
+}
+
 // Exercises
 export async function getAllExercises() {
   const db = await getDB()
-  const all = await db.getAll('exercises')
-  return all.filter(e => !e.deleted)
+  // Use the 'deleted' index to only fetch non-deleted records
+  try {
+    return await db.getAllFromIndex('exercises', 'deleted', false)
+  } catch {
+    // Fallback if index doesn't exist yet (pre-v3 databases)
+    const all = await db.getAll('exercises')
+    return all.filter(e => !e.deleted)
+  }
 }
 
 export async function getAllExercisesIncludeDeleted() {
@@ -65,8 +97,14 @@ export async function putExerciseRaw(exercise) {
 // Sessions
 export async function getAllSessions() {
   const db = await getDB()
-  const all = await db.getAll('sessions')
-  return all.filter(s => !s.deleted).sort((a, b) => b.date - a.date)
+  let sessions
+  try {
+    sessions = await db.getAllFromIndex('sessions', 'deleted', false)
+  } catch {
+    const all = await db.getAll('sessions')
+    sessions = all.filter(s => !s.deleted)
+  }
+  return sessions.sort((a, b) => b.date - a.date)
 }
 
 export async function getAllSessionsIncludeDeleted() {

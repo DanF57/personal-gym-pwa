@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { closeDB } from '../db/database'
 
 const AuthContext = createContext(null)
 
@@ -28,6 +29,8 @@ export function AuthProvider({ children }) {
 
   const signOut = async () => {
     await supabase.auth.signOut()
+    // Close the singleton connection before deleting databases
+    await closeDB()
     const dbs = await indexedDB.databases()
     for (const db of dbs) {
       indexedDB.deleteDatabase(db.name)
