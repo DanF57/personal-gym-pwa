@@ -151,6 +151,57 @@ async function pullExercises() {
   if (data.length > 0) {
     await putSetting('lastPullExercises', data[data.length - 1].server_updated_at)
   }
+
+  // Self-heal: soft-delete any local duplicates (same name, different ID).
+  // Keeps the one referenced in sessions; if tied, keeps most recently updated.
+  // Deletions get pushed to Supabase on next push cycle, cleaning it up there too.
+  await deduplicateLocalExercises()
+}
+
+async function deduplicateLocalExercises() {
+  const allLocal = await getAllExercisesIncludeDeleted()
+  const active = allLocal.filter(e => !e.deleted)
+
+  // Build map: name → [exercises]
+  const byName = new Map()
+  for (const ex of active) {
+    const key = ex.name.toLowerCase()
+    if (!byName.has(key)) byName.set(key, [])
+    byName.get(key).push(ex)
+  }
+
+  // Collect IDs used in sessions
+  const allSessions = await getAllSessionsIncludeDeleted()
+  const usedIds = new Set()
+  for (const session of allSessions) {
+    if (session.deleted) continue
+    for (const entry of session.entries || []) {
+      if (entry.exerciseId) usedIds.add(entry.exerciseId)
+    }
+  }
+
+  for (const [, group] of byName) {
+    if (group.length <= 1) continue
+
+    // Sort: exercises used in sessions first, then by most recently updated
+    const sorted = [...group].sort((a, b) => {
+      const aUsed = usedIds.has(a.id) ? 1 : 0
+      const bUsed = usedIds.has(b.id) ? 1 : 0
+      if (bUsed !== aUsed) return bUsed - aUsed
+      return b.updatedAt - a.updatedAt
+    })
+
+    // Keep first, soft-delete rest (syncedAt: null triggers push on next cycle)
+    const [, ...remove] = sorted
+    for (const ex of remove) {
+      await putExerciseRaw({
+        ...ex,
+        deleted: true,
+        updatedAt: Date.now(),
+        syncedAt: null // mark unsynced so it gets pushed to Supabase
+      })
+    }
+  }
 }
 
 async function pullSessions() {

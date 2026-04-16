@@ -1,43 +1,47 @@
 import { getAllExercises, addExercise } from './database'
 
 const DEFAULT_EXERCISES = [
-  // Push
-  { name: 'Bench Press', category: 'push' },
-  { name: 'Incline Bench Press', category: 'push' },
-  { name: 'Overhead Press', category: 'push' },
-  { name: 'Dumbbell Shoulder Press', category: 'push' },
-  { name: 'Dumbbell Chest Fly', category: 'push' },
-  { name: 'Tricep Pushdown', category: 'push' },
-  { name: 'Dips', category: 'push' },
-  // Pull
-  { name: 'Deadlift', category: 'pull' },
-  { name: 'Barbell Row', category: 'pull' },
-  { name: 'Pull-up', category: 'pull' },
-  { name: 'Chin-up', category: 'pull' },
-  { name: 'Lat Pulldown', category: 'pull' },
-  { name: 'Seated Cable Row', category: 'pull' },
-  { name: 'Face Pull', category: 'pull' },
-  { name: 'Barbell Curl', category: 'pull' },
-  { name: 'Dumbbell Curl', category: 'pull' },
+  // Chest
+  { name: 'Bench Press',         category: 'chest' },
+  { name: 'Incline Bench Press', category: 'chest' },
+  { name: 'Dumbbell Chest Fly',  category: 'chest' },
+  { name: 'Dips',                category: 'chest' },
+  // Shoulders
+  { name: 'Overhead Press',          category: 'shoulders' },
+  { name: 'Dumbbell Shoulder Press', category: 'shoulders' },
+  { name: 'Face Pull',               category: 'shoulders' },
+  // Back
+  { name: 'Deadlift',         category: 'back' },
+  { name: 'Barbell Row',      category: 'back' },
+  { name: 'Pull-up',          category: 'back' },
+  { name: 'Chin-up',          category: 'back' },
+  { name: 'Lat Pulldown',     category: 'back' },
+  { name: 'Seated Cable Row', category: 'back' },
+  // Triceps
+  { name: 'Tricep Pushdown', category: 'triceps' },
+  // Biceps
+  { name: 'Barbell Curl',  category: 'biceps' },
+  { name: 'Dumbbell Curl', category: 'biceps' },
   // Legs
-  { name: 'Squat', category: 'legs' },
-  { name: 'Front Squat', category: 'legs' },
-  { name: 'Leg Press', category: 'legs' },
-  { name: 'Romanian Deadlift', category: 'legs' },
-  { name: 'Leg Curl', category: 'legs' },
-  { name: 'Leg Extension', category: 'legs' },
-  { name: 'Calf Raise', category: 'legs' },
-  { name: 'Bulgarian Split Squat', category: 'legs' },
-  { name: 'Hip Thrust', category: 'legs' },
+  { name: 'Squat',          category: 'legs' },
+  { name: 'Front Squat',    category: 'legs' },
+  { name: 'Leg Press',      category: 'legs' },
+  { name: 'Leg Curl',       category: 'legs' },
+  { name: 'Leg Extension',  category: 'legs' },
+  { name: 'Calf Raise',     category: 'legs' },
+  // Glutes
+  { name: 'Romanian Deadlift',    category: 'glutes' },
+  { name: 'Bulgarian Split Squat', category: 'glutes' },
+  { name: 'Hip Thrust',           category: 'glutes' },
   // Core
-  { name: 'Plank', category: 'core' },
-  { name: 'Cable Crunch', category: 'core' },
+  { name: 'Plank',             category: 'core' },
+  { name: 'Cable Crunch',      category: 'core' },
   { name: 'Hanging Leg Raise', category: 'core' },
-  { name: 'Ab Wheel Rollout', category: 'core' },
+  { name: 'Ab Wheel Rollout',  category: 'core' },
   // Cardio
-  { name: 'Treadmill Run', category: 'cardio' },
-  { name: 'Rowing Machine', category: 'cardio' },
-  { name: 'Cycling', category: 'cardio' },
+  { name: 'Treadmill Run',   category: 'cardio' },
+  { name: 'Rowing Machine',  category: 'cardio' },
+  { name: 'Cycling',         category: 'cardio' },
 ]
 
 // Generate a deterministic UUID from exercise name so seeding

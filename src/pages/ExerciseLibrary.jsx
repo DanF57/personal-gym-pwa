@@ -2,16 +2,8 @@ import { useState } from 'react'
 import { useExercises } from '../hooks/useExercises'
 import { useSessions } from '../hooks/useSessions'
 import Modal from '../components/Modal'
+import { CATEGORIES } from '../utils/categories'
 import './ExerciseLibrary.css'
-
-const CATEGORIES = [
-  { value: 'push', label: 'Push' },
-  { value: 'pull', label: 'Pull' },
-  { value: 'legs', label: 'Legs' },
-  { value: 'core', label: 'Core' },
-  { value: 'cardio', label: 'Cardio' },
-  { value: 'other', label: 'Other' }
-]
 
 export default function ExerciseLibrary() {
   const { exercises, addExercise, removeExercise } = useExercises()
@@ -19,7 +11,7 @@ export default function ExerciseLibrary() {
   const [search, setSearch] = useState('')
   const [addOpen, setAddOpen] = useState(false)
   const [newName, setNewName] = useState('')
-  const [newCategory, setNewCategory] = useState('push')
+  const [newCategory, setNewCategory] = useState('chest')
 
   const exerciseCounts = {}
   for (const session of sessions) {
@@ -43,7 +35,7 @@ export default function ExerciseLibrary() {
     if (!name) return
     await addExercise(name, newCategory)
     setNewName('')
-    setNewCategory('push')
+    setNewCategory('chest')
     setAddOpen(false)
   }
 

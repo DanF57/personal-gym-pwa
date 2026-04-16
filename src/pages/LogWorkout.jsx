@@ -3,6 +3,7 @@ import { useExercises } from '../hooks/useExercises'
 import { useSessions } from '../hooks/useSessions'
 import { generateId } from '../utils/id'
 import Modal from '../components/Modal'
+import { CATEGORIES } from '../utils/categories'
 import './LogWorkout.css'
 
 const STORAGE_KEY = 'gym-tracker-active-workout'
@@ -356,20 +357,24 @@ export default function LogWorkout() {
           className="exercise-search"
         />
         <div className="exercise-picker-list">
-          {Object.entries(groupedExercises).map(([category, exs]) => (
-            <div key={category}>
-              <h4 className="picker-category">{category}</h4>
-              {exs.map(ex => (
-                <button
-                  key={ex.id}
-                  className="picker-exercise"
-                  onClick={() => selectExercise(ex)}
-                >
-                  {ex.name}
-                </button>
-              ))}
-            </div>
-          ))}
+          {CATEGORIES.map(cat => {
+            const exs = groupedExercises[cat.value]
+            if (!exs || exs.length === 0) return null
+            return (
+              <div key={cat.value}>
+                <h4 className="picker-category">{cat.label}</h4>
+                {exs.map(ex => (
+                  <button
+                    key={ex.id}
+                    className="picker-exercise"
+                    onClick={() => selectExercise(ex)}
+                  >
+                    {ex.name}
+                  </button>
+                ))}
+              </div>
+            )
+          })}
           {filteredExercises.length === 0 && (
             <p className="empty-state" style={{ padding: '2rem' }}>No exercises found</p>
           )}
