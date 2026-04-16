@@ -1,4 +1,4 @@
-import { useState, useReducer, useEffect, useRef } from 'react'
+import { useState, useReducer, useEffect, useRef, useMemo } from 'react'
 import { useExercises } from '../hooks/useExercises'
 import { useSessions } from '../hooks/useSessions'
 import { generateId } from '../utils/id'
@@ -111,6 +111,67 @@ function workoutReducer(state, action) {
   }
 }
 
+const REST_PRESETS = [60, 90, 120, 180]
+
+function RestTimer({ startedAt, onDismiss }) {
+  const [now, setNow] = useState(Date.now())
+  const [target, setTarget] = useState(null)
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  // Reset target when timer restarts (new set checked)
+  useEffect(() => {
+    setTarget(null)
+  }, [startedAt])
+
+  const elapsed = Math.floor((now - startedAt) / 1000)
+  const remaining = target != null ? target - elapsed : null
+  const overtime = remaining != null && remaining <= 0
+  const display = target != null ? Math.abs(remaining) : elapsed
+
+  const mins = Math.floor(display / 60)
+  const secs = display % 60
+  const pad = n => String(n).padStart(2, '0')
+
+  return (
+    <div className={`rest-timer-bar ${overtime ? 'rest-overtime' : ''}`}>
+      <div className="rest-timer-top">
+        <span className="rest-label">Rest</span>
+        <span className="rest-clock">
+          {overtime && '+'}{mins}:{pad(secs)}
+        </span>
+        <button className="rest-dismiss" onClick={onDismiss}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div className="rest-presets">
+        {REST_PRESETS.map(s => (
+          <button
+            key={s}
+            className={`rest-preset ${target === s ? 'rest-preset--active' : ''}`}
+            onClick={() => setTarget(t => t === s ? null : s)}
+          >
+            {s >= 60 ? `${s / 60}m` : `${s}s`}
+          </button>
+        ))}
+      </div>
+      {target != null && (
+        <div className="rest-progress-track">
+          <div
+            className="rest-progress-fill"
+            style={{ width: `${Math.min(100, (elapsed / target) * 100)}%` }}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Timer({ startTime }) {
   const [elapsed, setElapsed] = useState(0)
 
@@ -176,7 +237,7 @@ function SetRow({ set, index, entryId, dispatch }) {
   )
 }
 
-function ExerciseEntry({ entry, dispatch }) {
+function ExerciseEntry({ entry, dispatch, history }) {
   return (
     <div className="exercise-entry card fade-in">
       <div className="exercise-entry-header">
@@ -188,6 +249,17 @@ function ExerciseEntry({ entry, dispatch }) {
           Remove
         </button>
       </div>
+      {history && (history.pr || history.last) && (
+        <div className="exercise-history-hint">
+          {history.pr && (
+            <span className="hint-pr">PR: {history.pr.weight}kg × {history.pr.reps}</span>
+          )}
+          {history.pr && history.last && <span className="hint-sep">·</span>}
+          {history.last && (
+            <span className="hint-last">Last: {history.last.weight}kg × {history.last.reps}</span>
+          )}
+        </div>
+      )}
       <div className="sets-header">
         <span className="sets-header-num">Set</span>
         <span className="sets-header-weight">Weight</span>
@@ -219,9 +291,62 @@ export default function LogWorkout() {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [workout, dispatch] = useReducer(workoutReducer, { entries: saved?.entries ?? [] })
+  const [restStart, setRestStart] = useState(null)
   const { exercises } = useExercises()
-  const { saveSession } = useSessions()
+  const { sessions, saveSession } = useSessions()
   const searchRef = useRef(null)
+
+  // Build PR + last-workout lookup for each exercise
+  const exerciseStats = useMemo(() => {
+    const stats = {}
+    // Sessions already sorted by date desc from hook
+    for (const session of sessions) {
+      for (const entry of session.entries) {
+        const id = entry.exerciseId
+        if (!stats[id]) stats[id] = { pr: null, last: null, prWeight: 0 }
+
+        for (const set of entry.sets) {
+          const w = set.weight || 0
+          const r = set.reps || 0
+          if (w === 0) continue
+
+          // PR = heaviest weight; if tied, more reps wins
+          if (w > stats[id].prWeight || (w === stats[id].prWeight && r > (stats[id].pr?.reps || 0))) {
+            stats[id].pr = { weight: w, reps: r }
+            stats[id].prWeight = w
+          }
+        }
+
+        // Last workout = first session we encounter per exercise (sessions sorted desc)
+        if (!stats[id].last) {
+          const best = entry.sets
+            .filter(s => s.weight > 0)
+            .sort((a, b) => (b.weight - a.weight) || (b.reps - a.reps))[0]
+          if (best) {
+            stats[id].last = { weight: best.weight, reps: best.reps }
+          }
+        }
+      }
+    }
+    return stats
+  }, [sessions])
+
+  // Wrap dispatch to auto-start rest timer on set check
+  const workoutDispatch = (action) => {
+    if (action.type === 'TOGGLE_SET') {
+      // Find the set to check if it's being toggled ON (not off)
+      for (const entry of workout.entries) {
+        if (entry.id !== action.entryId) continue
+        const set = entry.sets.find(s => s.id === action.setId)
+        if (set && !set.done) {
+          // Set is about to be marked done → start rest
+          setRestStart(Date.now())
+        }
+        break
+      }
+    }
+    dispatch(action)
+  }
 
   // Persist workout state to sessionStorage on every change
   useEffect(() => {
@@ -238,6 +363,7 @@ export default function LogWorkout() {
     clearSavedWorkout()
     setActive(false)
     setStartTime(null)
+    setRestStart(null)
     dispatch({ type: 'RESET' })
   }
 
@@ -276,6 +402,7 @@ export default function LogWorkout() {
     clearSavedWorkout()
     setActive(false)
     setStartTime(null)
+    setRestStart(null)
     dispatch({ type: 'RESET' })
   }
 
@@ -335,9 +462,13 @@ export default function LogWorkout() {
 
       <div className="entries-list">
         {workout.entries.map(entry => (
-          <ExerciseEntry key={entry.id} entry={entry} dispatch={dispatch} />
+          <ExerciseEntry key={entry.id} entry={entry} dispatch={workoutDispatch} history={exerciseStats[entry.exerciseId]} />
         ))}
       </div>
+
+      {restStart && (
+        <RestTimer startedAt={restStart} onDismiss={() => setRestStart(null)} />
+      )}
 
       <button
         className="btn btn-primary btn-full"
@@ -347,7 +478,7 @@ export default function LogWorkout() {
         + Add Exercise
       </button>
 
-      <Modal open={pickerOpen} onClose={() => { setPickerOpen(false); setSearch('') }} title="Choose Exercise">
+      <Modal open={pickerOpen} onClose={() => { setPickerOpen(false); setSearch('') }} title="Choose Exercise" fullScreen>
         <input
           ref={searchRef}
           type="text"

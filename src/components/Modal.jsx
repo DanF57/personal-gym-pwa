@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import './Modal.css'
 
-export default function Modal({ open, onClose, title, children }) {
+export default function Modal({ open, onClose, title, children, fullScreen = false }) {
   useEffect(() => {
     if (open) {
       document.body.style.overflow = 'hidden'
@@ -13,9 +13,12 @@ export default function Modal({ open, onClose, title, children }) {
 
   if (!open) return null
 
+  const overlayClass = `modal-overlay${fullScreen ? ' modal-overlay--full' : ''}`
+  const contentClass = `modal-content${fullScreen ? ' modal-content--full' : ''}`
+
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
+    <div className={overlayClass} onClick={onClose}>
+      <div className={contentClass} onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h3 className="modal-title">{title}</h3>
           <button className="modal-close" onClick={onClose}>
