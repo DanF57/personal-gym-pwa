@@ -44,11 +44,12 @@ const DEFAULT_EXERCISES = [
   { name: 'Cycling',         category: 'cardio' },
 ]
 
-// Generate a deterministic UUID from exercise name so seeding
-// on different devices/sessions always produces the same IDs.
-// This prevents duplicates when sync pulls old records after a logout.
-async function deterministicId(name) {
-  const data = new TextEncoder().encode(`gym-tracker-exercise:${name.toLowerCase()}`)
+// Generate a deterministic UUID from user ID + exercise name so seeding
+// on different devices/sessions always produces the same IDs per user.
+// Including userId prevents conflicts when multiple users share the same
+// Supabase table — different users get different UUIDs for the same exercise.
+async function deterministicId(userId, name) {
+  const data = new TextEncoder().encode(`gym-tracker-exercise:${userId}:${name.toLowerCase()}`)
   const hash = await crypto.subtle.digest('SHA-256', data)
   const hex = Array.from(new Uint8Array(hash))
     .map(b => b.toString(16).padStart(2, '0'))
@@ -64,20 +65,20 @@ async function deterministicId(name) {
 
 let seedPromise = null
 
-export function seedExercises() {
+export function seedExercises(userId) {
   if (!seedPromise) {
-    seedPromise = doSeed()
+    seedPromise = doSeed(userId)
   }
   return seedPromise
 }
 
-async function doSeed() {
+async function doSeed(userId) {
   const existing = await getAllExercises()
   if (existing.length > 0) return
 
   for (const ex of DEFAULT_EXERCISES) {
     await addExercise({
-      id: await deterministicId(ex.name),
+      id: await deterministicId(userId, ex.name),
       name: ex.name,
       category: ex.category,
       isCustom: false,

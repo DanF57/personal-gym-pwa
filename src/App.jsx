@@ -22,7 +22,7 @@ function AppRoutes() {
       // Sync first (pulls existing exercises from cloud), then seed if empty
       syncAll()
         .catch(() => {})
-        .finally(() => seedExercises())
+        .finally(() => seedExercises(user.id))
         .then(() => {
           setReady(true)
           startAutoSync()
