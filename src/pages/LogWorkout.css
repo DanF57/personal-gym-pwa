@@ -38,6 +38,62 @@
   margin-bottom: 0.5rem;
 }
 
+/* Routine picker */
+.routine-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.routine-picker-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.routine-picker-name {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  font-weight: 700;
+  padding: 0.3rem 0;
+}
+
+.routine-picker-split {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.7rem 0.8rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  transition: all var(--transition);
+}
+
+.routine-picker-split:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-dim);
+}
+
+.routine-picker-split:active {
+  background: var(--color-primary-dim);
+}
+
+.routine-picker-split-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.routine-picker-split-info {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
 .workout-header {
   display: flex;
   align-items: flex-start;
@@ -90,6 +146,10 @@
   font-weight: 600;
 }
 
+.sets-header--bw {
+  grid-template-columns: 32px auto auto 1fr auto 32px 28px;
+}
+
 .set-row {
   display: grid;
   grid-template-columns: 32px 1fr auto auto 1fr auto 32px 28px;
@@ -98,6 +158,74 @@
   padding: 0.3rem 0.2rem;
   border-radius: var(--radius-sm);
   transition: all var(--transition);
+}
+
+.set-row--bw {
+  grid-template-columns: 32px auto auto 1fr auto 32px 28px;
+}
+
+.set-bw-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  text-align: center;
+  letter-spacing: 0.03em;
+}
+
+.set-bw-plus-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  letter-spacing: 0.03em;
+  padding-right: 0.15rem;
+}
+
+/* Weight mode + unit toggle row */
+.weight-mode-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.mode-toggle,
+.unit-toggle {
+  display: inline-flex;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  gap: 2px;
+}
+
+.mode-btn,
+.unit-btn {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  border-radius: calc(var(--radius-sm) - 2px);
+  transition: all var(--transition);
+  background: transparent;
+  border: none;
+}
+
+.unit-btn {
+  padding: 0.3rem 0.7rem;
+  min-width: 2.4rem;
+}
+
+.mode-btn:hover,
+.unit-btn:hover {
+  color: var(--color-text);
+}
+
+.mode-btn--active,
+.unit-btn--active {
+  background: var(--color-primary);
+  color: white;
 }
 
 .set-row.set-done {
@@ -194,11 +322,27 @@
 /* Exercise history hints (PR + last workout) */
 .exercise-history-hint {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: 0.2rem;
   font-size: 0.78rem;
   font-weight: 600;
   margin-bottom: 0.6rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.3rem 0.5rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+  transition: background var(--transition);
+}
+
+.exercise-history-hint:active {
+  background: var(--color-surface-3);
+}
+
+.hint-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   flex-wrap: wrap;
 }
 
@@ -213,6 +357,18 @@
 .hint-sep {
   color: var(--color-text-muted);
   opacity: 0.4;
+}
+
+.hint-dates {
+  display: flex;
+  gap: 0.8rem;
+  padding-top: 0.2rem;
+}
+
+.hint-date {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
 }
 
 /* Rest Timer */

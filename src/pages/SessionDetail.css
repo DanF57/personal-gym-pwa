@@ -18,8 +18,40 @@
   height: 18px;
 }
 
+.detail-date-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: left;
+  transition: color var(--transition);
+}
+
+.detail-date-btn:hover {
+  color: var(--color-primary);
+}
+
+.detail-date-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.detail-date-btn:hover .detail-date-icon {
+  color: var(--color-primary);
+}
+
+.detail-date-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
 .detail-header {
   margin-bottom: 1.2rem;
+  position: relative;
 }
 
 .detail-stats {

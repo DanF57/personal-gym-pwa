@@ -3,6 +3,7 @@ import {
   getAllSessions,
   getSession as dbGet,
   addSession as dbAdd,
+  updateSession as dbUpdate,
   deleteSession as dbDelete
 } from '../db/database'
 import { syncAll } from '../db/sync'
@@ -25,6 +26,12 @@ export function useSessions() {
     syncAll()
   }, [load])
 
+  const updateSession = useCallback(async (id, changes) => {
+    await dbUpdate(id, changes)
+    await load()
+    syncAll()
+  }, [load])
+
   const removeSession = useCallback(async (id) => {
     await dbDelete(id)
     await load()
@@ -35,5 +42,5 @@ export function useSessions() {
     return dbGet(id)
   }, [])
 
-  return { sessions, loading, saveSession, removeSession, getSessionById, reload: load }
+  return { sessions, loading, saveSession, updateSession, removeSession, getSessionById, reload: load }
 }

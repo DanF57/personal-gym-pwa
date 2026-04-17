@@ -1,9 +1,11 @@
 import { useState, useReducer, useEffect, useRef, useMemo } from 'react'
 import { useExercises } from '../hooks/useExercises'
 import { useSessions } from '../hooks/useSessions'
+import { useRoutines } from '../hooks/useRoutines'
 import { generateId } from '../utils/id'
 import Modal from '../components/Modal'
 import { CATEGORIES } from '../utils/categories'
+import { formatDate } from '../utils/format'
 import './LogWorkout.css'
 
 const STORAGE_KEY = 'gym-tracker-active-workout'
@@ -39,8 +41,24 @@ function workoutReducer(state, action) {
           id: generateId(),
           exerciseId: action.exercise.id,
           exerciseName: action.exercise.name,
+          weightMode: 'weighted',
+          unit: 'kg',
           sets: [{ id: generateId(), reps: '', weight: '', done: false }]
         }]
+      }
+    case 'SET_WEIGHT_MODE':
+      return {
+        ...state,
+        entries: state.entries.map(entry =>
+          entry.id === action.entryId ? { ...entry, weightMode: action.mode } : entry
+        )
+      }
+    case 'SET_UNIT':
+      return {
+        ...state,
+        entries: state.entries.map(entry =>
+          entry.id === action.entryId ? { ...entry, unit: action.unit } : entry
+        )
       }
     case 'REMOVE_EXERCISE':
       return {
@@ -194,20 +212,46 @@ function Timer({ startTime }) {
   )
 }
 
-function SetRow({ set, index, entryId, dispatch }) {
+function SetRow({ set, index, entryId, dispatch, weightMode, unit }) {
+  const isBW = weightMode === 'bodyweight'
+  const isBWPlus = weightMode === 'bw+added'
+
   return (
-    <div className={`set-row ${set.done ? 'set-done' : ''}`}>
+    <div className={`set-row ${set.done ? 'set-done' : ''} ${isBW ? 'set-row--bw' : ''}`}>
       <span className="set-number">{index + 1}</span>
-      <input
-        type="number"
-        placeholder="0"
-        value={set.weight}
-        onChange={e => dispatch({ type: 'UPDATE_SET', entryId, setId: set.id, field: 'weight', value: e.target.value })}
-        className="set-input weight-input"
-        inputMode="decimal"
-      />
-      <span className="set-unit">kg</span>
-      <span className="set-x">&times;</span>
+      {isBW ? (
+        <>
+          <span className="set-bw-label">BW</span>
+          <span className="set-x">&times;</span>
+        </>
+      ) : isBWPlus ? (
+        <>
+          <span className="set-bw-plus-label">BW +</span>
+          <input
+            type="number"
+            placeholder="0"
+            value={set.weight}
+            onChange={e => dispatch({ type: 'UPDATE_SET', entryId, setId: set.id, field: 'weight', value: e.target.value })}
+            className="set-input weight-input"
+            inputMode="decimal"
+          />
+          <span className="set-unit">{unit}</span>
+          <span className="set-x">&times;</span>
+        </>
+      ) : (
+        <>
+          <input
+            type="number"
+            placeholder="0"
+            value={set.weight}
+            onChange={e => dispatch({ type: 'UPDATE_SET', entryId, setId: set.id, field: 'weight', value: e.target.value })}
+            className="set-input weight-input"
+            inputMode="decimal"
+          />
+          <span className="set-unit">{unit}</span>
+          <span className="set-x">&times;</span>
+        </>
+      )}
       <input
         type="number"
         placeholder="0"
@@ -238,6 +282,11 @@ function SetRow({ set, index, entryId, dispatch }) {
 }
 
 function ExerciseEntry({ entry, dispatch, history }) {
+  const [showDates, setShowDates] = useState(false)
+  const weightMode = entry.weightMode || 'weighted'
+  const unit = entry.unit || 'kg'
+  const isBW = weightMode === 'bodyweight'
+
   return (
     <div className="exercise-entry card fade-in">
       <div className="exercise-entry-header">
@@ -249,21 +298,73 @@ function ExerciseEntry({ entry, dispatch, history }) {
           Remove
         </button>
       </div>
-      {history && (history.pr || history.last) && (
-        <div className="exercise-history-hint">
-          {history.pr && (
-            <span className="hint-pr">PR: {history.pr.weight}kg × {history.pr.reps}</span>
-          )}
-          {history.pr && history.last && <span className="hint-sep">·</span>}
-          {history.last && (
-            <span className="hint-last">Last: {history.last.weight}kg × {history.last.reps}</span>
-          )}
+
+      {/* Weight mode + unit toggles */}
+      <div className="weight-mode-row">
+        <div className="mode-toggle">
+          {[
+            { value: 'weighted', label: 'Weighted' },
+            { value: 'bodyweight', label: 'BW' },
+            { value: 'bw+added', label: 'BW+' },
+          ].map(m => (
+            <button
+              key={m.value}
+              className={`mode-btn ${weightMode === m.value ? 'mode-btn--active' : ''}`}
+              onClick={() => dispatch({ type: 'SET_WEIGHT_MODE', entryId: entry.id, mode: m.value })}
+            >
+              {m.label}
+            </button>
+          ))}
         </div>
+        {!isBW && (
+          <div className="unit-toggle">
+            <button
+              className={`unit-btn ${unit === 'kg' ? 'unit-btn--active' : ''}`}
+              onClick={() => dispatch({ type: 'SET_UNIT', entryId: entry.id, unit: 'kg' })}
+            >
+              kg
+            </button>
+            <button
+              className={`unit-btn ${unit === 'lbs' ? 'unit-btn--active' : ''}`}
+              onClick={() => dispatch({ type: 'SET_UNIT', entryId: entry.id, unit: 'lbs' })}
+            >
+              lbs
+            </button>
+          </div>
+        )}
+      </div>
+
+      {history && (history.pr || history.last) && (
+        <button
+          className="exercise-history-hint"
+          onClick={() => setShowDates(d => !d)}
+        >
+          <div className="hint-row">
+            {history.pr && (
+              <span className="hint-pr">PR: {history.pr.weight}kg × {history.pr.reps}</span>
+            )}
+            {history.pr && history.last && <span className="hint-sep">·</span>}
+            {history.last && (
+              <span className="hint-last">Last: {history.last.weight}kg × {history.last.reps}</span>
+            )}
+          </div>
+          {showDates && (
+            <div className="hint-dates">
+              {history.pr?.date && (
+                <span className="hint-date">PR: {formatDate(history.pr.date)}</span>
+              )}
+              {history.last?.date && (
+                <span className="hint-date">Last: {formatDate(history.last.date)}</span>
+              )}
+            </div>
+          )}
+        </button>
       )}
-      <div className="sets-header">
+
+      <div className={`sets-header ${isBW ? 'sets-header--bw' : ''}`}>
         <span className="sets-header-num">Set</span>
-        <span className="sets-header-weight">Weight</span>
-        <span></span>
+        {!isBW && <span className="sets-header-weight">Weight</span>}
+        {!isBW && <span></span>}
         <span></span>
         <span className="sets-header-reps">Reps</span>
         <span></span>
@@ -271,7 +372,15 @@ function ExerciseEntry({ entry, dispatch, history }) {
         <span></span>
       </div>
       {entry.sets.map((set, i) => (
-        <SetRow key={set.id} set={set} index={i} entryId={entry.id} dispatch={dispatch} />
+        <SetRow
+          key={set.id}
+          set={set}
+          index={i}
+          entryId={entry.id}
+          dispatch={dispatch}
+          weightMode={weightMode}
+          unit={unit}
+        />
       ))}
       <button
         className="btn btn-ghost btn-sm btn-full"
@@ -292,8 +401,10 @@ export default function LogWorkout() {
   const [search, setSearch] = useState('')
   const [workout, dispatch] = useReducer(workoutReducer, { entries: saved?.entries ?? [] })
   const [restStart, setRestStart] = useState(null)
+  const [routinePickerOpen, setRoutinePickerOpen] = useState(false)
   const { exercises } = useExercises()
   const { sessions, saveSession } = useSessions()
+  const { routines } = useRoutines()
   const searchRef = useRef(null)
 
   // Build PR + last-workout lookup for each exercise
@@ -312,7 +423,7 @@ export default function LogWorkout() {
 
           // PR = heaviest weight; if tied, more reps wins
           if (w > stats[id].prWeight || (w === stats[id].prWeight && r > (stats[id].pr?.reps || 0))) {
-            stats[id].pr = { weight: w, reps: r }
+            stats[id].pr = { weight: w, reps: r, date: session.date }
             stats[id].prWeight = w
           }
         }
@@ -323,7 +434,7 @@ export default function LogWorkout() {
             .filter(s => s.weight > 0)
             .sort((a, b) => (b.weight - a.weight) || (b.reps - a.reps))[0]
           if (best) {
-            stats[id].last = { weight: best.weight, reps: best.reps }
+            stats[id].last = { weight: best.weight, reps: best.reps, date: session.date }
           }
         }
       }
@@ -358,6 +469,26 @@ export default function LogWorkout() {
     setStartTime(Date.now())
   }
 
+  const startFromSplit = (split) => {
+    const entries = split.exercises.map(ex => ({
+      id: generateId(),
+      exerciseId: ex.exerciseId,
+      exerciseName: ex.exerciseName,
+      weightMode: 'weighted',
+      unit: 'kg',
+      sets: Array.from({ length: ex.sets }, () => ({
+        id: generateId(),
+        reps: '',
+        weight: '',
+        done: false
+      }))
+    }))
+    dispatch({ type: 'RESTORE', entries })
+    setActive(true)
+    setStartTime(Date.now())
+    setRoutinePickerOpen(false)
+  }
+
   const cancelWorkout = () => {
     if (workout.entries.length > 0 && !confirm('Discard this workout?')) return
     clearSavedWorkout()
@@ -369,17 +500,26 @@ export default function LogWorkout() {
 
   const finishWorkout = async () => {
     const validEntries = workout.entries
-      .map(entry => ({
-        exerciseId: entry.exerciseId,
-        exerciseName: entry.exerciseName,
-        sets: entry.sets
-          .filter(s => s.done && s.weight && s.reps)
-          .map(s => ({
-            reps: Number(s.reps),
-            weight: Number(s.weight),
-            unit: 'kg'
-          }))
-      }))
+      .map(entry => {
+        const mode = entry.weightMode || 'weighted'
+        const entryUnit = entry.unit || 'kg'
+        const isBW = mode === 'bodyweight'
+        const isBWPlus = mode === 'bw+added'
+
+        return {
+          exerciseId: entry.exerciseId,
+          exerciseName: entry.exerciseName,
+          weightMode: mode,
+          sets: entry.sets
+            .filter(s => s.done && s.reps && (isBW || s.weight))
+            .map(s => ({
+              reps: Number(s.reps),
+              weight: isBW ? 0 : Number(s.weight),
+              unit: isBW ? 'bw' : entryUnit,
+              ...(isBWPlus && { bodyweight: true })
+            }))
+        }
+      })
       .filter(entry => entry.sets.length > 0)
 
     if (validEntries.length === 0) {
@@ -440,9 +580,44 @@ export default function LogWorkout() {
           <h1 className="start-title">Ready to Train?</h1>
           <p className="start-subtitle">Start a new workout to track your exercises, sets, and progress.</p>
           <button className="btn btn-primary btn-lg" onClick={startWorkout}>
-            Start Workout
+            Start Empty Workout
           </button>
+          {routines.length > 0 && (
+            <button
+              className="btn btn-ghost btn-lg"
+              onClick={() => setRoutinePickerOpen(true)}
+              style={{ marginTop: '0.3rem' }}
+            >
+              Start from Routine
+            </button>
+          )}
         </div>
+
+        <Modal
+          open={routinePickerOpen}
+          onClose={() => setRoutinePickerOpen(false)}
+          title="Choose a Split"
+        >
+          <div className="routine-picker-list">
+            {routines.map(routine => (
+              <div key={routine.id} className="routine-picker-group">
+                <h4 className="routine-picker-name">{routine.name}</h4>
+                {routine.splits.map(split => (
+                  <button
+                    key={split.id}
+                    className="routine-picker-split"
+                    onClick={() => startFromSplit(split)}
+                  >
+                    <span className="routine-picker-split-name">{split.name}</span>
+                    <span className="routine-picker-split-info">
+                      {split.exercises.length} exercises · {split.exercises.reduce((t, e) => t + e.sets, 0)} sets
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+        </Modal>
       </div>
     )
   }

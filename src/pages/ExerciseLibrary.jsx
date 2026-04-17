@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useExercises } from '../hooks/useExercises'
 import { useSessions } from '../hooks/useSessions'
 import Modal from '../components/Modal'
@@ -6,6 +7,7 @@ import { CATEGORIES } from '../utils/categories'
 import './ExerciseLibrary.css'
 
 export default function ExerciseLibrary() {
+  const navigate = useNavigate()
   const { exercises, addExercise, removeExercise } = useExercises()
   const { sessions } = useSessions()
   const [search, setSearch] = useState('')
@@ -71,12 +73,15 @@ export default function ExerciseLibrary() {
               <h3 className="library-group-title">{cat.label}</h3>
               {exs.map(ex => (
                 <div key={ex.id} className="library-item">
-                  <div className="library-item-info">
+                  <button
+                    className="library-item-link"
+                    onClick={() => navigate('/progress', { state: { exerciseId: ex.id } })}
+                  >
                     <span className="library-item-name">{ex.name}</span>
                     {exerciseCounts[ex.id] > 0 && (
                       <span className="badge badge-accent">{exerciseCounts[ex.id]} sessions</span>
                     )}
-                  </div>
+                  </button>
                   {ex.isCustom && (
                     <button className="library-item-delete" onClick={() => handleDelete(ex)}>
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">

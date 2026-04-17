@@ -1,16 +1,24 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useSessions } from '../hooks/useSessions'
 import { formatDateTime, formatDuration, formatWeight, formatVolume } from '../utils/format'
 import { sessionVolume, entryVolume, estimated1RM, heaviestWeight } from '../utils/stats'
 import './SessionDetail.css'
 
+// Convert timestamp to datetime-local input value (YYYY-MM-DDTHH:mm)
+function toLocalInput(ts) {
+  const d = new Date(ts)
+  const pad = n => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 export default function SessionDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { getSessionById, removeSession } = useSessions()
+  const { getSessionById, updateSession, removeSession } = useSessions()
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
+  const dateRef = useRef(null)
 
   useEffect(() => {
     getSessionById(id).then(s => {
@@ -18,6 +26,18 @@ export default function SessionDetail() {
       setLoading(false)
     })
   }, [id, getSessionById])
+
+  const handleDateChange = async (e) => {
+    const newDate = new Date(e.target.value).getTime()
+    if (isNaN(newDate)) return
+    await updateSession(id, { date: newDate })
+    setSession(prev => ({ ...prev, date: newDate }))
+  }
+
+  const openDatePicker = () => {
+    dateRef.current?.showPicker?.()
+    dateRef.current?.focus()
+  }
 
   const handleDelete = async () => {
     if (!confirm('Delete this workout? This cannot be undone.')) return
@@ -51,7 +71,20 @@ export default function SessionDetail() {
       </button>
 
       <div className="detail-header">
-        <h1 className="page-title">{formatDateTime(session.date)}</h1>
+        <button className="detail-date-btn" onClick={openDatePicker} title="Tap to change date">
+          <h1 className="page-title">{formatDateTime(session.date)}</h1>
+          <svg className="detail-date-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+          </svg>
+        </button>
+        <input
+          ref={dateRef}
+          type="datetime-local"
+          className="detail-date-input"
+          value={toLocalInput(session.date)}
+          onChange={handleDateChange}
+        />
         <div className="detail-stats">
           <div className="detail-stat">
             <span className="stat-value">{formatDuration(session.durationMinutes)}</span>

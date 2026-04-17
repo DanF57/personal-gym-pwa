@@ -39,10 +39,19 @@
   border-bottom: none;
 }
 
-.library-item-info {
+.library-item-link {
   display: flex;
   align-items: center;
   gap: 0.6rem;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  padding: 0.2rem 0;
+  transition: color var(--transition);
+}
+
+.library-item-link:active {
+  color: var(--color-primary);
 }
 
 .library-item-name {

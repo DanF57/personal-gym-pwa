@@ -8,6 +8,7 @@ import SessionHistory from './pages/SessionHistory'
 import SessionDetail from './pages/SessionDetail'
 import Progress from './pages/Progress'
 import ExerciseLibrary from './pages/ExerciseLibrary'
+import Routines from './pages/Routines'
 import { seedExercises } from './db/seed'
 import { syncAll, startAutoSync, stopAutoSync } from './db/sync'
 import './App.css'
@@ -41,6 +42,7 @@ function AppRoutes() {
     <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<LogWorkout />} />
+        <Route path="/routines" element={<Routines />} />
         <Route path="/history" element={<SessionHistory />} />
         <Route path="/history/:id" element={<SessionDetail />} />
         <Route path="/progress" element={<Progress />} />

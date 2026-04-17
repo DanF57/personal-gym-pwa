@@ -2,12 +2,16 @@ import { supabase } from '../lib/supabase'
 import {
   getUnsyncedExercises,
   getUnsyncedSessions,
+  getUnsyncedRoutines,
   markExercisesSynced,
   markSessionsSynced,
+  markRoutinesSynced,
   putExerciseRaw,
   putSessionRaw,
+  putRoutineRaw,
   getAllExercisesIncludeDeleted,
   getAllSessionsIncludeDeleted,
+  getAllRoutinesIncludeDeleted,
   getSetting,
   putSetting
 } from './database'
@@ -39,8 +43,10 @@ export async function syncAll(attempt = 0) {
   try {
     await pushExercises(session.user.id)
     await pushSessions(session.user.id)
+    await pushRoutines(session.user.id)
     await pullExercises()
     await pullSessions()
+    await pullRoutines()
     const now = Date.now()
     await putSetting('lastSyncAt', now)
     setSyncStatus({ status: 'synced', lastSyncedAt: now, error: null })
@@ -191,14 +197,36 @@ async function deduplicateLocalExercises() {
       return b.updatedAt - a.updatedAt
     })
 
-    // Keep first, soft-delete rest (syncedAt: null triggers push on next cycle)
-    const [, ...remove] = sorted
+    const [keeper, ...remove] = sorted
+    const removeIds = new Set(remove.map(e => e.id))
+
+    // Remap session entries that reference removed IDs → keeper ID
+    for (const session of allSessions) {
+      let changed = false
+      const updatedEntries = (session.entries || []).map(entry => {
+        if (removeIds.has(entry.exerciseId)) {
+          changed = true
+          return { ...entry, exerciseId: keeper.id }
+        }
+        return entry
+      })
+      if (changed) {
+        await putSessionRaw({
+          ...session,
+          entries: updatedEntries,
+          updatedAt: Date.now(),
+          syncedAt: null
+        })
+      }
+    }
+
+    // Soft-delete duplicates (syncedAt: null triggers push on next cycle)
     for (const ex of remove) {
       await putExerciseRaw({
         ...ex,
         deleted: true,
         updatedAt: Date.now(),
-        syncedAt: null // mark unsynced so it gets pushed to Supabase
+        syncedAt: null
       })
     }
   }
@@ -241,6 +269,67 @@ async function pullSessions() {
 
   if (data.length > 0) {
     await putSetting('lastPullSessions', data[data.length - 1].server_updated_at)
+  }
+}
+
+// ─── Push/Pull routines ────────────────────────────────────
+
+async function pushRoutines(userId) {
+  const unsynced = await getUnsyncedRoutines()
+  if (unsynced.length === 0) return
+
+  const rows = unsynced.map(r => ({
+    id: r.id,
+    user_id: userId,
+    name: r.name,
+    splits: r.splits,
+    deleted: r.deleted ?? false,
+    created_at: r.createdAt,
+    updated_at: r.updatedAt
+  }))
+
+  const { error } = await supabase
+    .from('routines')
+    .upsert(rows, { onConflict: 'id' })
+
+  if (error) throw new Error(`Push routines: ${error.message}`)
+
+  await markRoutinesSynced(unsynced.map(r => r.id))
+}
+
+async function pullRoutines() {
+  const lastPull = (await getSetting('lastPullRoutines')) || 0
+
+  const { data, error } = await supabase
+    .from('routines')
+    .select('*')
+    .gt('server_updated_at', lastPull)
+    .order('server_updated_at', { ascending: true })
+
+  if (error) throw new Error(`Pull routines: ${error.message}`)
+
+  const localAll = await getAllRoutinesIncludeDeleted()
+  const localMap = new Map(localAll.map(r => [r.id, r]))
+
+  for (const row of data) {
+    const local = localMap.get(row.id)
+    if (local && (!local.syncedAt || local.updatedAt > local.syncedAt)) {
+      continue
+    }
+    await putRoutineRaw({
+      id: row.id,
+      name: row.name,
+      splits: row.splits,
+      deleted: row.deleted,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      serverUpdatedAt: row.server_updated_at,
+      syncedAt: Date.now()
+    })
+  }
+
+  if (data.length > 0) {
+    await putSetting('lastPullRoutines', data[data.length - 1].server_updated_at)
   }
 }
 
@@ -290,6 +379,25 @@ async function handleRealtimeChange(table, payload) {
     await putSetting('lastPullSessions', row.server_updated_at)
   }
 
+  if (table === 'routines') {
+    const local = await getAllRoutinesIncludeDeleted()
+    const existing = local.find(r => r.id === row.id)
+    if (existing && (!existing.syncedAt || existing.updatedAt > existing.syncedAt)) {
+      return
+    }
+    await putRoutineRaw({
+      id: row.id,
+      name: row.name,
+      splits: row.splits,
+      deleted: row.deleted,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      serverUpdatedAt: row.server_updated_at,
+      syncedAt: Date.now()
+    })
+    await putSetting('lastPullRoutines', row.server_updated_at)
+  }
+
   setSyncStatus({ status: 'synced', lastSyncedAt: Date.now(), error: null })
 }
 
@@ -305,6 +413,9 @@ function subscribeRealtime() {
     )
     .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions' },
       (payload) => handleRealtimeChange('sessions', payload)
+    )
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'routines' },
+      (payload) => handleRealtimeChange('routines', payload)
     )
     .subscribe()
 }

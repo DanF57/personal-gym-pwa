@@ -78,9 +78,37 @@ create policy "Users manage own sessions"
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
+-- Routines table (splits stored as JSONB array)
+create table if not exists public.routines (
+  id uuid primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  name text not null,
+  splits jsonb not null default '[]',
+  deleted boolean default false,
+  created_at bigint not null,
+  updated_at bigint not null,
+  server_updated_at bigint not null default (extract(epoch from now()) * 1000)::bigint
+);
+
+create or replace trigger routines_server_ts
+  before insert or update on public.routines
+  for each row execute function set_server_updated_at();
+
+create index if not exists idx_routines_user on public.routines(user_id);
+create index if not exists idx_routines_server_updated on public.routines(server_updated_at);
+
+alter table public.routines enable row level security;
+
+create policy "Users manage own routines"
+  on public.routines
+  for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
 -- =============================================================
--- Enable Realtime for both tables
+-- Enable Realtime for all tables
 -- =============================================================
 
 alter publication supabase_realtime add table public.exercises;
 alter publication supabase_realtime add table public.sessions;
+alter publication supabase_realtime add table public.routines;

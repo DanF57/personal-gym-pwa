@@ -1,7 +1,7 @@
 import { openDB } from 'idb'
 
 const DB_NAME = 'gym-tracker-db'
-const DB_VERSION = 3
+const DB_VERSION = 4
 
 let dbInstance = null
 
@@ -17,8 +17,6 @@ function getDB() {
           db.createObjectStore('settings', { keyPath: 'key' })
         }
         if (oldVersion < 3) {
-          // Add indexes on 'deleted' for efficient filtered queries
-          // During upgrade, transaction.objectStore gives access to existing stores
           const exStore = db.objectStoreNames.contains('exercises')
             ? transaction.objectStore('exercises')
             : null
@@ -32,6 +30,10 @@ function getDB() {
           if (seStore && !seStore.indexNames.contains('deleted')) {
             seStore.createIndex('deleted', 'deleted')
           }
+        }
+        if (oldVersion < 4) {
+          const routineStore = db.createObjectStore('routines', { keyPath: 'id' })
+          routineStore.createIndex('deleted', 'deleted')
         }
       }
     })
@@ -129,6 +131,14 @@ export async function addSession(session) {
   return db.put('sessions', record)
 }
 
+export async function updateSession(id, changes) {
+  const db = await getDB()
+  const existing = await db.get('sessions', id)
+  if (!existing) return
+  const updated = { ...existing, ...changes, updatedAt: Date.now(), syncedAt: null }
+  return db.put('sessions', updated)
+}
+
 export async function deleteSession(id) {
   const db = await getDB()
   const existing = await db.get('sessions', id)
@@ -172,6 +182,69 @@ export async function markExercisesSynced(ids) {
   const db = await getDB()
   const tx = db.transaction('exercises', 'readwrite')
   const store = tx.objectStore('exercises')
+  const now = Date.now()
+  for (const id of ids) {
+    const record = await store.get(id)
+    if (record) {
+      record.syncedAt = now
+      await store.put(record)
+    }
+  }
+  await tx.done
+}
+
+// Routines
+export async function getAllRoutines() {
+  const db = await getDB()
+  try {
+    return await db.getAllFromIndex('routines', 'deleted', false)
+  } catch {
+    const all = await db.getAll('routines')
+    return all.filter(r => !r.deleted)
+  }
+}
+
+export async function getAllRoutinesIncludeDeleted() {
+  const db = await getDB()
+  return db.getAll('routines')
+}
+
+export async function addRoutine(routine) {
+  const db = await getDB()
+  const record = {
+    ...routine,
+    updatedAt: Date.now(),
+    syncedAt: null,
+    deleted: false
+  }
+  return db.put('routines', record)
+}
+
+export async function deleteRoutine(id) {
+  const db = await getDB()
+  const existing = await db.get('routines', id)
+  if (existing) {
+    existing.deleted = true
+    existing.updatedAt = Date.now()
+    existing.syncedAt = null
+    return db.put('routines', existing)
+  }
+}
+
+export async function putRoutineRaw(routine) {
+  const db = await getDB()
+  return db.put('routines', routine)
+}
+
+export async function getUnsyncedRoutines() {
+  const all = await getAllRoutinesIncludeDeleted()
+  return all.filter(r => !r.syncedAt || r.updatedAt > r.syncedAt)
+}
+
+export async function markRoutinesSynced(ids) {
+  const db = await getDB()
+  const tx = db.transaction('routines', 'readwrite')
+  const store = tx.objectStore('routines')
   const now = Date.now()
   for (const id of ids) {
     const record = await store.get(id)
