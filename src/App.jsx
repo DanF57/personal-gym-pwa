@@ -9,7 +9,6 @@ import SessionDetail from './pages/SessionDetail'
 import Progress from './pages/Progress'
 import ExerciseLibrary from './pages/ExerciseLibrary'
 import Routines from './pages/Routines'
-import { seedExercises } from './db/seed'
 import { syncAll, startAutoSync, stopAutoSync } from './db/sync'
 import './App.css'
 
@@ -22,8 +21,7 @@ function AppRoutes() {
       // Sync first (pulls existing exercises from cloud), then seed if empty
       syncAll()
         .catch(() => {})
-        .finally(() => seedExercises(user.id))
-        .then(() => {
+        .finally(() => {
           setReady(true)
           startAutoSync()
         })

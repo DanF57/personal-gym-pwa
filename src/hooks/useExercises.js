@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getAllExercises, addExercise as dbAdd, deleteExercise as dbDelete } from '../db/database'
-import { syncAll } from '../db/sync'
-import { generateId } from '../utils/id'
+import { getAllExercises } from '../db/database'
 
 export function useExercises() {
   const [exercises, setExercises] = useState([])
@@ -16,25 +14,5 @@ export function useExercises() {
 
   useEffect(() => { load() }, [load])
 
-  const addExercise = useCallback(async (name, category) => {
-    const exercise = {
-      id: generateId(),
-      name,
-      category,
-      isCustom: true,
-      createdAt: Date.now()
-    }
-    await dbAdd(exercise)
-    await load()
-    syncAll()
-    return exercise
-  }, [load])
-
-  const removeExercise = useCallback(async (id) => {
-    await dbDelete(id)
-    await load()
-    syncAll()
-  }, [load])
-
-  return { exercises, loading, addExercise, removeExercise, reload: load }
+  return { exercises, loading, reload: load }
 }
